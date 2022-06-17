@@ -178,7 +178,7 @@ class NP_LinkCounter extends NucleusPlugin {
             } // return as it is
             list($key, $tgt, $tit, $linktext) = array($mvar[0], '', '', $mvar[1]);
         } else {
-            $lc = split('linkcnt=', $mvar[2]);
+            $lc = explode('linkcnt=', $mvar[2]);
             if (!$lc[1]) { // no linkcnt property
                 return $m[0]; // return as it is
             }
@@ -200,7 +200,7 @@ class NP_LinkCounter extends NucleusPlugin {
             )
             . $this->_make_counter($this->link[$key]['cnt']);
     }
-    
+
     //helper function
     function _make_link($key, $url, $linktext, $tgt, $tit) {
         global $CONF;
