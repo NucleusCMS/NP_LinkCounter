@@ -1,4 +1,4 @@
-<?php 
+<?php
 /*
 	NP_LinkCounter
 	by yu (http://nucleus.datoka.jp/)
@@ -15,11 +15,11 @@ if (!function_exists('sql_table')) {
 if(!function_exists('quote_smart')) {
 }
 
-class NP_LinkCounter extends NucleusPlugin { 
-	function getName()      { return 'Link Counter'; } 
-	function getAuthor()    { return 'yu'; } 
-	function getURL()       { return 'http://works.datoka.jp/'; } 
-	function getVersion()   { return '0.4'; } 
+class NP_LinkCounter extends NucleusPlugin {
+	function getName()      { return 'Link Counter'; }
+	function getAuthor()    { return 'yu'; }
+	function getURL()       { return 'http://works.datoka.jp/'; }
+	function getVersion()   { return '0.4'; }
 	function getMinNucleusVersion() { return 200; }
 	function getTableList() { return array( sql_table('plug_linkcounter') ); }
 	function getEventList() { return array( 'PreItem' ); }
@@ -32,42 +32,42 @@ class NP_LinkCounter extends NucleusPlugin {
 		}
 	}
 
-	function getDescription() { 
+	function getDescription() {
 		return 'Link counter. [USAGE] mediavar - <%media(file|text|linkcnt=keyword)%> '.
 			'or itemvar - <%LinkCounter(link,url,linktext,target,title)%> '.
 			'or <%LinkCounter(total,keyword)%>';
-	} 
+	}
 
 
-	function install(){ 
+	function install(){
 		sql_query ("CREATE TABLE IF NOT EXISTS ". sql_table('plug_linkcounter') ." (
 			lkey VARCHAR(64)  NOT NULL,
 			cnt  INT UNSIGNED NOT NULL DEFAULT 1,
 			url  VARCHAR(255) NOT NULL DEFAULT '',
 			primary key (lkey))");
-		
+
 		$this->createOption('tpl_cnt',   'Counter Template.', 'text', '[$cnt$word]');
 		$this->createOption('tpl_word1', 'Unit word for template (singlar form).', 'text', 'click');
 		$this->createOption('tpl_word2', 'Unit word for template (plural form).', 'text', 'clicks');
 		$this->createOption('flg_auto',  'Auto count mode for media tag (no need to add "linkcnt" property).', 'yesno', 'yes');
 		$this->createOption('exkey',     'Keyword of feeds skin name (invalidate showing counter for XML syndication).' ,'text','feeds');
 		$this->createOption('flg_erase', 'Erase data on uninstall.', 'yesno', 'no');
-	} 
-	
-	function unInstall() { 
+	}
+
+	function unInstall() {
 		if ($this->getOption(flg_erase) == 'yes') {
 			sql_query ('DROP TABLE '. sql_table('plug_linkcounter') );
 		}
-	} 
-	
-	
+	}
+
+
 	function init() {
 		$this->tpl_cnt   = $this->getOption('tpl_cnt');
 		$this->tpl_word1 = $this->getOption('tpl_word1');
 		$this->tpl_word2 = $this->getOption('tpl_word2');
 		$this->flg_auto  = ($this->getOption('flg_auto') == 'yes');
 		$this->exkey     = $this->getOption('exkey');
-		
+
 		$query = "SHOW TABLES LIKE '". sql_table('plug_linkcounter') ."'";
 		$table = sql_query($query);
 		if (mysql_num_rows($table) > 0){
@@ -79,17 +79,17 @@ class NP_LinkCounter extends NucleusPlugin {
 			}
 		}
 	}
-	
-	
+
+
 	function doSkinVar($skinType, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
 		global $CONF;
-		
+
 		if ($mode == 'link' and $key) {
 			$cnt = $this->link[$key]['cnt'];
-			
+
 			$retlink = $this->_make_link($key, $url, $linktext, $target, $title);
 			$retcnt  = $this->_make_counter($cnt);
-			
+
 			print $retlink.$retcnt;
 		}
 		else if ($mode == 'total' and $key) {
@@ -98,36 +98,36 @@ class NP_LinkCounter extends NucleusPlugin {
 			print $retcnt;
 		}
 	}
-	
+
 	function doItemVar(&$item, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
 		$this->doSkinVar('', $mode, $key, $url, $linktext, $target, $title);
 	}
-	
+
 	function doTemplateVar(&$item, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
 		$this->doSkinVar('', $mode, $key, $url, $linktext, $target, $title);
 	}
-	
-	
-	function event_PreItem($data) { 
+
+
+	function event_PreItem($data) {
 		// prepare
 		$tgt  = '/<%media\((.+?)\)%>/';
-		
+
 		// convert to linkcounter
 		$obj = &$data["item"];
 		$this->authorid = $obj->authorid;
-		$obj->body = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->body); 
-		$obj->more = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->more); 
-	} 
-	
-	
+		$obj->body = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->body);
+		$obj->more = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->more);
+	}
+
+
 	function doAction($type) {
 		global $CONF;
-		
+
 		switch($type) {
 			case 'c':
 				$key = urldecode(getVar('k'));
 				$url = getVar('url');
-				
+
 				if ($this->link[$key]['cnt']) {
 					$query = sprintf("UPDATE %s SET cnt=%d WHERE lkey=%s",
 						sql_table('plug_linkcounter'),
@@ -144,7 +144,7 @@ class NP_LinkCounter extends NucleusPlugin {
 						$this->quote_smart($url) );
 				}
 				sql_query($query);
-				
+
 				redirect($url);
 				break;
 			default:
@@ -152,13 +152,13 @@ class NP_LinkCounter extends NucleusPlugin {
 				break;
 		}
 	}
-	
-	
+
+
 	function makelink_callback($m) {
 		global $CONF;
-	
+
 		$mcnt = count($m);
-		
+
 		if ($mcnt == 2) { // media var
 			$mvar = explode('|', $m[1]);
 			if (!$mvar[2]) { // no extra property
@@ -172,66 +172,66 @@ class NP_LinkCounter extends NucleusPlugin {
 				}
 				list($key, $tgt, $tit, $linktext) = array($lc[1], '', '', $mvar[1]);
 			}
-			
+
 			if ( strstr($mvar[0], '/') ) $memberdir = '';
 			else $memberdir = $this->authorid . '/';
 			$url = $CONF['MediaURL'] . $memberdir . $mvar[0];
 		}
 		else return $m[0]; //invalid match. return as it is
-		
+
 		$retlink = $this->_make_link($key, $url, $linktext, $tgt, $tit);
 		$cnt = $this->link[$key]['cnt'];
 		$retcnt  = $this->_make_counter($cnt);
 		return $retlink . $retcnt;
 	}
-	
-	
+
+
 	//helper function
 	function _make_link($key, $url, $linktext, $tgt, $tit) {
 		global $CONF;
-		
+
 		$base = $CONF['ActionURL'] .'?action=plugin&amp;name=LinkCounter&amp;type=c';
-		
+
 		//compare urls
 		$saved_url = $this->link[$key]['url'];
-		if ($saved_url and $url == $saved_url) 
+		if ($saved_url and $url == $saved_url)
 			$url = ''; // it omits url parameter to make short url
-		
+
 		$key = urlencode($key);
-		
+
 		if ($url) $urlstr = "&amp;url=$url";
 		if ($tgt) $tgtstr = " target='$tgt'";
 		if ($tit) $titstr = " title='{$tit}'";
 		$retlink = "<a href='{$base}&amp;k={$key}{$urlstr}'{$tgtstr}{$titstr}>$linktext</a>";
-		
+
 		return $retlink;
 	}
-	
+
 	function _make_counter($cnt) {
 		global $currentSkinName;
-		
+
 		if (strpos($currentSkinName, $this->exkey) !== false) return '';
-		
+
 		$tpl  = $this->tpl_cnt;
 		if ($cnt <= 1) $word = $this->tpl_word1;
 		else $word = $this->tpl_word2;
 		$ary_target  = array('$cnt',    '$word');
 		$ary_replace = array( (int)$cnt, $word);
 		$retcnt = str_replace($ary_target, $ary_replace, $tpl);
-		
+
 		return $retcnt;
 	}
 
 	function _get_total($key) {
 		$key = $this->quote_smart('%'.$key.'%');
-		
+
 		// total count
 		$query = "SELECT SUM(cnt) AS cnt FROM ". sql_table('plug_linkcounter');
 		$query.= " WHERE lkey LIKE $key";
 		$res = sql_query($query);
 		$rcnt = mysql_fetch_object($res);
 		$total = $rcnt->cnt;
-		
+
 		return $total;
 	}
 
@@ -239,7 +239,7 @@ class NP_LinkCounter extends NucleusPlugin {
 		if (get_magic_quotes_gpc()) $value = stripslashes($value);
 		$value = mysql_real_escape_string($value);
 		if (! is_numeric($value)) $value = "'". $value ."'";
-		
+
 		return $value;
 	}
 }
