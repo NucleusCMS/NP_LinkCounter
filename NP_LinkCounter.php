@@ -136,7 +136,6 @@ class NP_LinkCounter extends NucleusPlugin {
             if (!$url) {
                 $url = serverVar('HTTP_REFERER');
             }
-            $url = preg_replace('|[^a-z0-9-~+_.?#=&;,/:@%]|i', '', $url);
             sql_query(
                 sprintf(
                     'INSERT INTO %s SET lkey=%s, cnt=1, url=%s',
@@ -145,7 +144,7 @@ class NP_LinkCounter extends NucleusPlugin {
                     $this->quote_smart($url)
                 )
             );
-            redirect($url);
+            redirect($this->encodeURI($url));
             return;
         }
         $query = sprintf(
@@ -158,7 +157,7 @@ class NP_LinkCounter extends NucleusPlugin {
         if (!$url) {
             $url = $this->link[$key]['url'];
         }
-        redirect($url);
+        redirect($this->encodeURI($url));
     }
 
     function makelink_callback($m) {
@@ -260,4 +259,15 @@ class NP_LinkCounter extends NucleusPlugin {
         }
         return $value;
     }
+
+    function encodeURI($url) {
+        //  A-Z a-z 0-9 ; , / ? : @ & = + $ - _ . ! ~ * ' ( ) #
+        // ;,/?:@&=+$-_.!~*'()#
+        return strtr(rawurlencode($url), array(
+                '%21' => '!', '%23' => '#', '%24' => '$', '%26' => '&', '%27' => "'",
+                '%28' => '(', '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
+                '%2D' => '-', '%2E' => '.', '%2F' => '/', '%3A' => ':', '%3B' => ';',
+                '%3D' => '=', '%3F' => '?', '%40' => '@', '%5F' => '_', '%7E' => '~' ));        
+    }
+
 }
