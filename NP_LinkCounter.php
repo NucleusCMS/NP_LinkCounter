@@ -171,7 +171,7 @@ class NP_LinkCounter extends NucleusPlugin {
 
         // media var
         $mvar = explode('|', $m[1]);
-        if (!$mvar[2]) { // no extra property
+        if (!isset($mvar[2]) || !$mvar[2]) { // no extra property
             if (!$this->flg_auto) {
                 return $m[0];
             } // return as it is
@@ -260,14 +260,14 @@ class NP_LinkCounter extends NucleusPlugin {
         return $value;
     }
 
+    // encodeURI for Nucleus redirect function
     function encodeURI($url) {
-        //  A-Z a-z 0-9 ; , / ? : @ & = + $ - _ . ! ~ * ' ( ) #
-        // ;,/?:@&=+$-_.!~*'()#
+        //  Nucleus redirect pattern  $url = preg_replace('|[^a-z0-9-~+_.?#=&;,/:@%*]|i', '', $url);
+        // -~+_.?#=&;,/:@*
         return strtr(rawurlencode($url), array(
-                '%21' => '!', '%23' => '#', '%24' => '$', '%26' => '&', '%27' => "'",
-                '%28' => '(', '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
-                '%2D' => '-', '%2E' => '.', '%2F' => '/', '%3A' => ':', '%3B' => ';',
-                '%3D' => '=', '%3F' => '?', '%40' => '@', '%5F' => '_', '%7E' => '~' ));        
+                '%23' => '#', '%26' => '&', '%2A' => '*', '%2B' => '+', '%2C' => ',', 
+                '%2D' => '-', '%2E' => '.', '%2F' => '/', '%3A' => ':', '%3B' => ';', 
+                '%3D' => '=', '%3F' => '?', '%40' => '@', '%5F' => '_', '%7E' => '~' ));
     }
 
 }
