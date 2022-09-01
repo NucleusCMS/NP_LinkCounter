@@ -1,27 +1,53 @@
 <?php
-class NP_LinkCounter extends NucleusPlugin {
-    function getName()      { return 'Link Counter'; }
-    function getAuthor()    { return 'yu'; }
-    function getURL()       { return 'http://works.datoka.jp/'; }
-    function getVersion()   { return '0.5'; }
-    function getMinNucleusVersion() { return 200; }
-    function getTableList() { return array( sql_table('plug_linkcounter') ); }
-    function getEventList() { return array( 'PreItem' ); }
-    function supportsFeature($what) {
+
+class NP_LinkCounter extends NucleusPlugin
+{
+    public function getName()
+    {
+        return 'Link Counter';
+    }
+    public function getAuthor()
+    {
+        return 'yu';
+    }
+    public function getURL()
+    {
+        return 'http://works.datoka.jp/';
+    }
+    public function getVersion()
+    {
+        return '0.5';
+    }
+    public function getMinNucleusVersion()
+    {
+        return 350;
+    }
+    public function getTableList()
+    {
+        return array( sql_table('plug_linkcounter') );
+    }
+    public function getEventList()
+    {
+        return array( 'PreItem' );
+    }
+    public function supportsFeature($what)
+    {
         if ($what !== 'SqlTablePrefix') {
             return 0;
         }
         return 1;
     }
 
-    function getDescription() {
+    public function getDescription()
+    {
         return 'Link counter. [USAGE] mediavar - <%media(file|text|linkcnt=keyword)%> '.
             'or itemvar - <%LinkCounter(link,url,linktext,target,title)%> '.
             'or <%LinkCounter(total,keyword)%>';
     }
 
-    function install(){
-        sql_query ("CREATE TABLE IF NOT EXISTS ". sql_table('plug_linkcounter') ." (
+    public function install()
+    {
+        sql_query("CREATE TABLE IF NOT EXISTS ". sql_table('plug_linkcounter') ." (
             lkey VARCHAR(64)  NOT NULL,
             cnt  INT UNSIGNED NOT NULL DEFAULT 1,
             url  VARCHAR(255) NOT NULL DEFAULT '',
@@ -65,14 +91,24 @@ class NP_LinkCounter extends NucleusPlugin {
         );
     }
 
-    function unInstall() {
+    public function unInstall()
+    {
         if ($this->getOption('flg_erase') !== 'yes') {
             return;
         }
         sql_query('DROP TABLE ' . sql_table('plug_linkcounter'));
     }
 
-    function init() {
+    public $authorid;
+    public $link;
+    public $tpl_cnt;
+    public $tpl_word1;
+    public $tpl_word2;
+    public $flg_auto;
+    public $exkey;
+
+    public function init()
+    {
         $this->tpl_cnt   = $this->getOption('tpl_cnt');
         $this->tpl_word1 = $this->getOption('tpl_word1');
         $this->tpl_word2 = $this->getOption('tpl_word2');
@@ -85,17 +121,22 @@ class NP_LinkCounter extends NucleusPlugin {
         }
 
         $query = "SELECT * FROM " . sql_table('plug_linkcounter');
-        $res = sql_query($query);
+        $res   = sql_query($query);
         while ($link = sql_fetch_object($res)) { //copy all data
+            if (!isset($this->link[$link->lkey])) {
+                $this->link[$link->lkey] = array();
+            }
             $this->link[$link->lkey]['cnt'] = (int)$link->cnt;
             $this->link[$link->lkey]['url'] = stripslashes($link->url);
         }
     }
 
-    function doSkinVar($skinType, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
+    public function doSkinVar($skinType, $mode = 'total', $key = '', $url = '', $linktext = '', $target = '', $title = '')
+    {
         if ($mode === 'link' && $key) {
+            $cnt = (isset($this->link[$key]) && isset($this->link[$key]['cnt'])) ? (int)$this->link[$key]['cnt'] : 0;
             echo $this->_make_link($key, $url, $linktext, $target, $title);
-            echo $this->_make_counter($this->link[$key]['cnt']);
+            echo $this->_make_counter($cnt);
             return;
         }
         if ($mode !== 'total' || !$key) {
@@ -104,26 +145,30 @@ class NP_LinkCounter extends NucleusPlugin {
         echo $this->_make_counter($this->_get_total($key));
     }
 
-    function doItemVar(&$item, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
+    public function doItemVar(&$item, $mode = 'total', $key = '', $url = '', $linktext = '', $target = '', $title = '')
+    {
         $this->doSkinVar('', $mode, $key, $url, $linktext, $target, $title);
     }
 
-    function doTemplateVar(&$item, $mode='total', $key='', $url='', $linktext='', $target='', $title='') {
+    public function doTemplateVar(&$item, $mode = 'total', $key = '', $url = '', $linktext = '', $target = '', $title = '')
+    {
         $this->doSkinVar('', $mode, $key, $url, $linktext, $target, $title);
     }
 
-    function event_PreItem($data) {
+    public function event_PreItem($data)
+    {
         // prepare
-        $tgt  = '/<%media\((.+?)\)%>/';
+        $tgt = '/<%media\((.+?)\)%>/';
 
         // convert to linkcounter
-        $obj = &$data["item"];
+        $obj            = &$data["item"];
         $this->authorid = $obj->authorid;
-        $obj->body = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->body);
-        $obj->more = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->more);
+        $obj->body      = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->body);
+        $obj->more      = preg_replace_callback($tgt, array(&$this, 'makelink_callback'), $obj->more);
     }
 
-    function doAction($type) {
+    public function doAction($type)
+    {
         if ($type !== 'c') {
             redirect(serverVar('HTTP_REFERER'));
             return;
@@ -132,7 +177,7 @@ class NP_LinkCounter extends NucleusPlugin {
         $key = urldecode(getVar('k'));
         $url = getVar('url');
 
-        if (empty($this->link[$key]['cnt'])) {
+        if (!isset($this->link[$key]) || empty($this->link[$key]['cnt'])) {
             if (!$url) {
                 $url = serverVar('HTTP_REFERER');
             }
@@ -160,7 +205,8 @@ class NP_LinkCounter extends NucleusPlugin {
         redirect($this->encodeURI($url));
     }
 
-    function makelink_callback($m) {
+    public function makelink_callback($m)
+    {
         global $CONF;
 
         $mcnt = count($m);
@@ -190,21 +236,24 @@ class NP_LinkCounter extends NucleusPlugin {
             $memberdir = $this->authorid . '/';
         }
 
+        $cnt = (isset($this->link[$key]) && isset($this->link[$key]['cnt'])) ? (int)$this->link[$key]['cnt'] : 0;
+
         return $this->_make_link(
-                $key,
-                $CONF['MediaURL'] . $memberdir . $mvar[0],
-                $linktext,
-                $tgt,
-                $tit
-            )
-            . $this->_make_counter($this->link[$key]['cnt']);
+            $key,
+            $CONF['MediaURL'] . $memberdir . $mvar[0],
+            $linktext,
+            $tgt,
+            $tit
+        )
+            . $this->_make_counter($cnt);
     }
 
-    //helper function
-    function _make_link($key, $url, $linktext, $tgt, $tit) {
+    // helper function
+    private function _make_link($key, $url, $linktext, $tgt, $tit)
+    {
         global $CONF;
 
-        $saved_url = $this->link[$key]['url'];
+        $saved_url = (isset($this->link[$key]) && isset($this->link[$key]['url'])) ? $this->link[$key]['url'] : '';
         if ($saved_url && $url === $saved_url) {
             $url = '';
         }
@@ -222,7 +271,8 @@ class NP_LinkCounter extends NucleusPlugin {
         return $retlink;
     }
 
-    function _make_counter($cnt) {
+    private function _make_counter($cnt)
+    {
         global $currentSkinName;
 
         if (strpos($currentSkinName, $this->exkey) !== false) {
@@ -239,7 +289,8 @@ class NP_LinkCounter extends NucleusPlugin {
         );
     }
 
-    function _get_total($key) {
+    private function _get_total($key)
+    {
         $rcnt = sql_fetch_object(
             sql_query(
                 sprintf(
@@ -252,7 +303,8 @@ class NP_LinkCounter extends NucleusPlugin {
         return $rcnt->cnt;
     }
 
-    function quote_smart($value) {
+    private function quote_smart($value)
+    {
         $value = sql_real_escape_string($value);
         if (! is_numeric($value)) {
             return "'" . $value . "'";
@@ -261,13 +313,13 @@ class NP_LinkCounter extends NucleusPlugin {
     }
 
     // encodeURI for Nucleus redirect function
-    function encodeURI($url) {
+    public function encodeURI($url)
+    {
         //  Nucleus redirect pattern  $url = preg_replace('|[^a-z0-9-~+_.?#=&;,/:@%*]|i', '', $url);
         // -~+_.?#=&;,/:@*
         return strtr(rawurlencode($url), array(
-                '%23' => '#', '%26' => '&', '%2A' => '*', '%2B' => '+', '%2C' => ',', 
-                '%2D' => '-', '%2E' => '.', '%2F' => '/', '%3A' => ':', '%3B' => ';', 
+                '%23' => '#', '%26' => '&', '%2A' => '*', '%2B' => '+', '%2C' => ',',
+                '%2D' => '-', '%2E' => '.', '%2F' => '/', '%3A' => ':', '%3B' => ';',
                 '%3D' => '=', '%3F' => '?', '%40' => '@', '%5F' => '_', '%7E' => '~' ));
     }
-
 }
