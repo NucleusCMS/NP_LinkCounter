@@ -30,12 +30,9 @@ class NP_LinkCounter extends NucleusPlugin
     {
         return array( 'PreItem' );
     }
-    public function supportsFeature($what)
+    public function supportsFeature($feature)
     {
-        if ($what !== 'SqlTablePrefix') {
-            return 0;
-        }
-        return 1;
+        return in_array($feature, ['SqlTablePrefix', 'HelpPage']);
     }
 
     public function getDescription()
