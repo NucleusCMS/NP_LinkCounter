@@ -1,5 +1,14 @@
 <?php
 
+if ( ! function_exists('try_define')) {
+    function try_define($name, $value)
+    {
+        if ( ! defined($name)) {
+            define($name, $value);
+        }
+    }
+}
+
 class NP_LinkCounter extends NucleusPlugin
 {
     public function getName()
@@ -16,7 +25,7 @@ class NP_LinkCounter extends NucleusPlugin
     }
     public function getVersion()
     {
-        return '0.5';
+        return '0.6';
     }
     public function getMinNucleusVersion()
     {
@@ -52,37 +61,37 @@ class NP_LinkCounter extends NucleusPlugin
 
         $this->createOption(
             'tpl_cnt',
-            'Counter Template.',
+            _LINKCOUNTER_OPT_DESC_TPL_CNT,
             'text',
             '[$cnt$word]'
         );
         $this->createOption(
             'tpl_word1',
-            'Unit word for template (singlar form).',
+            _LINKCOUNTER_OPT_DESC_TPL_WORD1,
             'text',
             'click'
         );
         $this->createOption(
             'tpl_word2',
-            'Unit word for template (plural form).',
+            _LINKCOUNTER_OPT_DESC_TPL_WORD2,
             'text',
             'clicks'
         );
         $this->createOption(
             'flg_auto',
-            'Auto count mode for media tag (no need to add "linkcnt" property).',
+            _LINKCOUNTER_OPT_DESC_FLG_AUTO,
             'yesno',
             'yes'
         );
         $this->createOption(
             'exkey',
-            'Keyword of feeds skin name (invalidate showing counter for XML syndication).',
+            _LINKCOUNTER_OPT_DESC_EXKEY,
             'text',
             'feeds'
         );
         $this->createOption(
             'flg_erase',
-            'Erase data on uninstall.',
+            _LINKCOUNTER_OPT_DESC_FLG_ERASE,
             'yesno',
             'no'
         );
@@ -106,6 +115,13 @@ class NP_LinkCounter extends NucleusPlugin
 
     public function init()
     {
+        $language = str_replace(["\\",'/', DIRECTORY_SEPARATOR ], '', getLanguageName());
+        if (file_exists($this->getDirectory()."language/{$language}.php")) {
+            include_once($this->getDirectory()."language/{$language}.php");
+        } else {
+            include_once($this->getDirectory().'language/english-utf8.php');
+        }
+
         $this->tpl_cnt   = $this->getOption('tpl_cnt');
         $this->tpl_word1 = $this->getOption('tpl_word1');
         $this->tpl_word2 = $this->getOption('tpl_word2');
